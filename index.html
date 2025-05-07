@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>点击小圆点</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif; /* 默认字体 */
+            touch-action: manipulation; /* 禁用双击缩放，提升移动端体验 */
+        }
+        .game-font {
+            font-family: 'Press Start 2P', cursive; /* 游戏风格字体 */
+        }
+        #game-area {
+            width: 100%;
+            height: 70vh; /* 游戏区域高度 */
+            max-width: 600px; /* 最大宽度 */
+            background-color: #f0f0f0;
+            border: 2px solid #333;
+            position: relative;
+            overflow: hidden; /* 防止小圆点跑到外面 */
+            cursor: pointer;
+            border-radius: 0.5rem; /* 圆角 */
+        }
+        #dot {
+            width: 40px;
+            height: 40px;
+            background-color: #ef4444; /* 红色小圆点 */
+            border-radius: 50%;
+            position: absolute;
+            transition: all 0.1s ease-out; /* 平滑过渡效果 */
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+        .btn-3d {
+            background-color: #4CAF50; /* 绿色按钮 */
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 8px;
+            box-shadow: 0 4px #999;
+            transition: all 0.1s ease-in-out;
+        }
+        .btn-3d:active {
+            box-shadow: 0 2px #666;
+            transform: translateY(2px);
+        }
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-md text-center mb-8">
+        <h1 class="text-4xl font-bold game-font text-blue-600">点击小圆点!</h1>
+        </div>
+
+    <div id="game-container" class="w-full max-w-md bg-white p-6 rounded-lg shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+            <div class="text-lg">得分: <span id="score" class="font-bold text-xl text-green-500">0</span></div>
+            <div class="text-lg">时间: <span id="time" class="font-bold text-xl text-red-500">30</span>s</div>
+        </div>
+
+        <div id="game-area" class="mb-4">
+            <div id="dot"></div>
+        </div>
+
+        <button id="startButton" class="btn-3d w-full game-font">开始游戏</button>
+    </div>
+
+    <div id="messageBox" class="message-box hidden">
+        <p id="messageText" class="text-lg mb-4"></p>
+        <button id="closeMessageButton" class="btn-3d bg-blue-500">知道了</button>
+    </div>
+
+    <script>
+        // 获取HTML元素
+        const gameArea = document.getElementById('game-area');
+        const dot = document.getElementById('dot');
+        const scoreDisplay = document.getElementById('score');
+        const timeDisplay = document.getElementById('time');
+        const startButton = document.getElementById('startButton');
+        const messageBox = document.getElementById('messageBox');
+        const messageText = document.getElementById('messageText');
+        const closeMessageButton = document.getElementById('closeMessageButton');
+
+        // 游戏变量
+        let score = 0;
+        let timeLeft = 30; // 游戏时间 (秒)
+        let gameInterval;
+        let dotDisappearTimeout;
+        let gameActive = false;
+
+        // 初始化小圆点位置 (在游戏开始前不移动)
+        // moveDot(); // 移除此处的调用，在startGame中首次调用
+
+        // 移动小圆点到随机位置
+        function moveDot() {
+            if (!gameActive) return; // 如果游戏未激活，则不移动
+
+            // 获取游戏区域的尺寸
+            const gameAreaWidth = gameArea.clientWidth;
+            const gameAreaHeight = gameArea.clientHeight;
+
+            // 获取小圆点的尺寸
+            const dotWidth = dot.offsetWidth;
+            const dotHeight = dot.offsetHeight;
+
+            // 计算小圆点可以移动的最大X和Y坐标
+            // 确保小圆点完全在游戏区域内
+            const maxX = gameAreaWidth - dotWidth;
+            const maxY = gameAreaHeight - dotHeight;
+
+            // 生成随机坐标
+            const randomX = Math.floor(Math.random() * maxX);
+            const randomY = Math.floor(Math.random() * maxY);
+
+            // 设置小圆点的新位置
+            dot.style.left = randomX + 'px';
+            dot.style.top = randomY + 'px';
+
+            // 如果小圆点一段时间未被点击，则自动移动
+            clearTimeout(dotDisappearTimeout); // 清除之前的计时器
+            dotDisappearTimeout = setTimeout(() => {
+                if (gameActive) {
+                    moveDot();
+                }
+            }, 2000); // 2秒后自动移动
+        }
+
+        // 点击小圆点事件处理
+        dot.addEventListener('click', (event) => {
+            event.stopPropagation(); // 阻止事件冒泡到gameArea
+            if (!gameActive) return;
+
+            score++;
+            scoreDisplay.textContent = score;
+            moveDot();
+        });
+
+        // 点击游戏区域事件处理 (用于检测未点中圆点的情况)
+        gameArea.addEventListener('click', () => {
+            if (!gameActive) return;
+            // 如果点击事件不是由小圆点触发的 (即点到了空白区域)
+            // 这个检查现在通过dot的click事件中的stopPropagation()来简化
+            // 此处逻辑会在dot的click事件未发生时触发
+            // 因此，如果执行到这里，意味着用户点击了游戏区域但不是小圆点
+            endGame("你点歪了！游戏结束。");
+        });
+
+
+        // 开始游戏
+        function startGame() {
+            if (gameActive) return;
+
+            score = 0;
+            timeLeft = 30;
+            gameActive = true;
+            scoreDisplay.textContent = score;
+            timeDisplay.textContent = timeLeft;
+            startButton.disabled = true;
+            startButton.textContent = "游戏中...";
+            dot.style.display = 'block';
+            moveDot(); // 游戏开始时，立即移动一次小圆点
+
+            gameInterval = setInterval(() => {
+                timeLeft--;
+                timeDisplay.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    endGame("时间到！游戏结束。"); // 时间到了也结束游戏
+                }
+            }, 1000);
+        }
+
+        // 结束游戏
+        function endGame(customMessage) {
+            if (!gameActive) return; // 防止重复结束游戏
+
+            gameActive = false;
+            clearInterval(gameInterval);
+            clearTimeout(dotDisappearTimeout);
+            dot.style.display = 'none';
+            startButton.disabled = false;
+            startButton.textContent = "再玩一次";
+
+            const finalMessage = customMessage || `游戏结束! 你的得分是: ${score}`; // 如果没有自定义消息，则显示默认的得分消息
+            showMessage(finalMessage);
+        }
+
+        // 显示消息框
+        function showMessage(message) {
+            messageText.textContent = message;
+            messageBox.classList.remove('hidden');
+        }
+
+        // 关闭消息框
+        closeMessageButton.addEventListener('click', () => {
+            messageBox.classList.add('hidden');
+        });
+
+        // 开始按钮点击事件
+        startButton.addEventListener('click', startGame);
+
+        // 窗口大小改变时，重新调整小圆点位置
+        window.addEventListener('resize', () => {
+            if (gameActive) {
+                const gameAreaWidth = gameArea.clientWidth;
+                const gameAreaHeight = gameArea.clientHeight;
+                const dotWidth = dot.offsetWidth;
+                const dotHeight = dot.offsetHeight;
+                let currentX = parseInt(dot.style.left || 0);
+                let currentY = parseInt(dot.style.top || 0);
+
+                if (currentX + dotWidth > gameAreaWidth) {
+                    dot.style.left = (gameAreaWidth - dotWidth) + 'px';
+                }
+                if (currentY + dotHeight > gameAreaHeight) {
+                    dot.style.top = (gameAreaHeight - dotHeight) + 'px';
+                }
+                 if (currentX < 0) {
+                    dot.style.left = '0px';
+                }
+                if (currentY < 0) {
+                    dot.style.top = '0px';
+                }
+            }
+        });
+
+        // 初始隐藏小圆点，直到游戏开始
+        dot.style.display = 'none';
+
+    </script>
+</body>
+</html>
